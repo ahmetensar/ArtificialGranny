@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.openqa.selenium.By;
@@ -27,8 +26,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 class PuzzleManager {
 
-  private static final String URL_PUZZLE = "https://nytimes.com/crosswords/game/mini";
   private static final int PUZZLE_SIZE = 5;
+  private static final String URL_PUZZLE = "https://nytimes.com/crosswords/game/mini";
   private static final Pattern DATE_REGEX = Pattern.compile("<date>(.+?)</date>");
   private static final Pattern ACROSS_REGEX = Pattern.compile("<across>(.+?)</across>");
   private static final Pattern DOWN_REGEX = Pattern.compile("<down>(.+?)</down>");
@@ -37,6 +36,8 @@ class PuzzleManager {
   private WebDriver driver;
   private Map<Integer, String> acrossClues;
   private Map<Integer, String> downClues;
+
+  // letter numbers and black squares
   private int[][] geometry = new int[PUZZLE_SIZE][PUZZLE_SIZE];
   private char[][] letters = new char[PUZZLE_SIZE][PUZZLE_SIZE];
   private String date;
@@ -119,6 +120,7 @@ class PuzzleManager {
     if (date == null) {
       return "";
     }
+
     StringBuilder sb = new StringBuilder();
 
     sb.append(date).append("\n");
@@ -143,14 +145,11 @@ class PuzzleManager {
       }
       sb.append("\n");
     }
-
     return sb.toString();
   }
 
   void loadPuzzleFromWeb() {
-
     ChromeDriverManager.getInstance().setup();
-
     ChromeOptions options = new ChromeOptions();
     options.addArguments("--disable-remote-fonts");
     options.addArguments("--mute-audio");
@@ -165,17 +164,26 @@ class PuzzleManager {
     System.out.println();
     System.out.println("Page is loading...");
 
-    driver.manage().timeouts().implicitlyWait(30, TimeUnit.SECONDS);
     driver.get(URL_PUZZLE);
 
     System.out.println("Page is loaded");
     System.out.println();
 
+    // wait until OK button is ready
     (new WebDriverWait(driver, 10))
         .until(ExpectedConditions
             .presenceOfElementLocated(
                 By.cssSelector("button[class^='ModalBody-button--']>div>span")));
+
+    // click buttons
     driver.findElement(By.cssSelector("button[class^='ModalBody-button--']>div>span")).click();
+    driver.findElement(By.cssSelector("div[class^='Toolbar-expandedMenu--']> li:nth-child(2) > "
+        + "button")).click();
+    driver.findElement(By.cssSelector("div[class^='Toolbar-expandedMenu--']> li:nth-child(2) > "
+        + "button + ul>li:nth-child(3)>a")).click();
+    driver.findElement(By.cssSelector("div[class^='ModalBody-buttonContainer--']>:nth-child(2)"))
+        .click();
+    driver.findElement(By.cssSelector("div[class^='ModalBody-closeX--']>a")).click();
 
     loadSquares();
     loadDate();
@@ -213,6 +221,7 @@ class PuzzleManager {
         String[] entry = downMatcher.group(1).split("<split>");
         downClues.put(Integer.parseInt(entry[0]), entry[1]);
       }
+
       int count = 0;
       final Matcher squareMatcher = SQUARE_REGEX.matcher(content);
       while (squareMatcher.find()) {
@@ -238,6 +247,7 @@ class PuzzleManager {
         .append("<split>").append(value).append("</across>\n"));
     downClues.forEach((key, value) -> content.append("<down>").append(key)
         .append("<split>").append(value).append("</down>\n"));
+
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {
         content.append("<square>").append(geometry[i][j]).append("<split>")
@@ -270,20 +280,15 @@ class PuzzleManager {
   }
 
   private void loadSquares() {
-    driver.findElement(By.cssSelector("div[class^='Toolbar-expandedMenu--']> li:nth-child(2) > "
-        + "button")).click();
-    driver.findElement(By.cssSelector("div[class^='Toolbar-expandedMenu--']> li:nth-child(2) > "
-        + "button + ul>li:nth-child(3)>a")).click();
-    driver.findElement(By.cssSelector("div[class^='ModalBody-buttonContainer--']>:nth-child(2)"))
-        .click();
-    driver.findElement(By.cssSelector("div[class^='ModalBody-closeX--']>a")).click();
     List<WebElement> isEmptyList = driver.findElement(By.cssSelector("g[data-group='cells']"))
         .findElements(By.cssSelector("rect"));
+
     if (isEmptyList.size() != PUZZLE_SIZE * PUZZLE_SIZE) {
       driver.close();
       System.out.println("Wrong puzzle: puzzle size is " + (int) Math.sqrt(isEmptyList.size()));
       throw new IllegalStateException();
     }
+
     for (int i = 0; i < PUZZLE_SIZE; i++) {
       for (int j = 0; j < PUZZLE_SIZE; j++) {
         if (isEmptyList.get(i * PUZZLE_SIZE + j).getAttribute("fill").equals("black")) {
@@ -295,24 +300,23 @@ class PuzzleManager {
       }
     }
 
-    List<WebElement> elements = driver.findElement(By.cssSelector("g[data-group='cells']"))
+    List<WebElement> squareList = driver.findElement(By.cssSelector("g[data-group='cells']"))
         .findElements(By.tagName("text"));
 
-    int elementsIndex = 0;
+    int squareListIndex = 0;
     for (int i = 0; i < PUZZLE_SIZE; i++) {
       for (int j = 0; j < PUZZLE_SIZE; j++) {
         if (geometry[i][j] != -1) {
-          if (elements.get(elementsIndex).getAttribute("text-anchor").equals("start")) {
-            geometry[i][j] = Integer.parseInt(elements.get(elementsIndex).getText());
-            elementsIndex++;
+          if (squareList.get(squareListIndex).getAttribute("text-anchor").equals("start")) {
+            geometry[i][j] = Integer.parseInt(squareList.get(squareListIndex).getText());
+            squareListIndex++;
           }
-          letters[i][j] = elements.get(elementsIndex).getText().charAt(0);
-          elementsIndex++;
+          letters[i][j] = squareList.get(squareListIndex).getText().charAt(0);
+          squareListIndex++;
         }
       }
     }
   }
-
 
   private void loadDate() {
     WebElement element = driver.findElement(By.cssSelector("div[class^='PuzzleDetails-date--']"));

@@ -9,6 +9,15 @@ import java.util.Scanner;
 public class Main {
 
   public static void main(String[] args) {
+    File puzzleDir = new File("puzzles");
+    if (!puzzleDir.exists()) {
+      if (puzzleDir.mkdir())
+        System.out.println("Puzzles folder is created");
+      else
+        System.out.println("Puzzles folder could not be created");
+      System.out.println();
+    }
+
     Scanner scan = new Scanner(System.in);
     PuzzleManager pm = new PuzzleManager();
     int choice;

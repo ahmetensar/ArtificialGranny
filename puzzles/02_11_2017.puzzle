@@ -1,36 +1,38 @@
 <date>02_11_2017</date>
-<clue>1<split>With 4-Across, document trove released on 10/26/17</clue>
-<clue>4<split>See 1-Across</clue>
-<clue>6<split>Chicago airport</clue>
-<clue>7<split>Noah's ark groupings</clue>
-<clue>8<split>Help the person washing dishes, in a way</clue>
-<clue>-1<split>Arabic word that literally translates to "striving"</clue>
-<clue>-2<split>Panache</clue>
-<clue>-3<split>Washington who plays the lead on "Scandal"</clue>
-<clue>-4<split>Overly fancy dresser</clue>
-<clue>-5<split>French pronoun</clue>
-<square>-1<split>-</square>
-<square>1<split>J</square>
-<square>2<split>F</square>
-<square>3<split>K</square>
-<square>-1<split>-</square>
-<square>4<split>F</square>
-<square>0<split>I</square>
-<square>0<split>L</square>
-<square>0<split>E</square>
-<square>5<split>S</square>
-<square>6<split>O</square>
-<square>0<split>H</square>
-<square>0<split>A</square>
-<square>0<split>R</square>
-<square>0<split>E</square>
-<square>7<split>P</square>
-<square>0<split>A</square>
-<square>0<split>I</square>
-<square>0<split>R</square>
-<square>0<split>S</square>
-<square>-1<split>-</square>
-<square>8<split>D</square>
-<square>0<split>R</square>
-<square>0<split>Y</square>
-<square>-1<split>-</square>
+<clue>1,With 4-Across, document trove released on 10/26/17</clue>
+<clue>4,See 1-Across</clue>
+<clue>6,Chicago airport</clue>
+<clue>7,Noah's ark groupings</clue>
+<clue>8,Help the person washing dishes, in a way</clue>
+<clue>-1,Arabic word that literally translates to "striving"</clue>
+<clue>-2,Panache</clue>
+<clue>-3,Washington who plays the lead on "Scandal"</clue>
+<clue>-4,Overly fancy dresser</clue>
+<clue>-5,French pronoun</clue>
+<square>-1,-</square>
+<square>1,J</square>
+<square>2,F</square>
+<square>3,K</square>
+<square>-1,-</square>
+<square>4,F</square>
+<square>0,I</square>
+<square>0,L</square>
+<square>0,E</square>
+<square>5,S</square>
+<square>6,O</square>
+<square>0,H</square>
+<square>0,A</square>
+<square>0,R</square>
+<square>0,E</square>
+<square>7,P</square>
+<square>0,A</square>
+<square>0,I</square>
+<square>0,R</square>
+<square>0,S</square>
+<square>-1,-</square>
+<square>8,D</square>
+<square>0,R</square>
+<square>0,Y</square>
+<square>-1,-</square>
+<related>1,4</related>
+<related>4,1</related>

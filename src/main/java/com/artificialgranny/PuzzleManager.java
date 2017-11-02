@@ -287,7 +287,7 @@ class PuzzleManager {
         .findElements(By.cssSelector("rect"));
 
     if (isEmptyList.size() != PUZZLE_SIZE * PUZZLE_SIZE) {
-      driver.close();
+      driver.quit();
       System.out.println("Wrong puzzle: puzzle size is " + (int) Math.sqrt(isEmptyList.size()));
       throw new IllegalStateException();
     }

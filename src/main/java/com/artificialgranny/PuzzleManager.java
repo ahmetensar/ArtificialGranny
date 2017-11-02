@@ -43,6 +43,8 @@ class PuzzleManager {
   private String date;
 
   PuzzleManager() {
+    ChromeDriverManager.getInstance().setup();
+    System.out.println();
   }
 
   String getDate() {
@@ -149,17 +151,18 @@ class PuzzleManager {
   }
 
   void loadPuzzleFromWeb() {
-    ChromeDriverManager.getInstance().setup();
     ChromeOptions options = new ChromeOptions();
     options.addArguments("--disable-remote-fonts");
     options.addArguments("--mute-audio");
     options.addArguments("--headless");
+    options.addArguments("--disable-gpu");
 
-    System.out.println("Starting driver");
+    System.out.println();
 
     Instant start = Instant.now();
     driver = new ChromeDriver(options);
 
+    System.out.println();
     System.out.println("Driver is opened");
     System.out.println();
     System.out.println("Page is loading...");
@@ -190,7 +193,7 @@ class PuzzleManager {
     loadClues(1, acrossClues = new HashMap<>());
     loadClues(2, downClues = new HashMap<>());
 
-    driver.close();
+    driver.quit();
     Instant end = Instant.now();
 
     System.out.println("Driver is closed");

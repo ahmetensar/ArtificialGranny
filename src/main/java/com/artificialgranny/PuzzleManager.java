@@ -10,7 +10,7 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -29,13 +29,11 @@ class PuzzleManager {
   private static final int PUZZLE_SIZE = 5;
   private static final String URL_PUZZLE = "https://nytimes.com/crosswords/game/mini";
   private static final Pattern DATE_REGEX = Pattern.compile("<date>(.+?)</date>");
-  private static final Pattern ACROSS_REGEX = Pattern.compile("<across>(.+?)</across>");
-  private static final Pattern DOWN_REGEX = Pattern.compile("<down>(.+?)</down>");
+  private static final Pattern CLUE_REGEX = Pattern.compile("<clue>(.+?)</clue>");
   private static final Pattern SQUARE_REGEX = Pattern.compile("<square>(.+?)</square>");
 
   private WebDriver driver;
-  private Map<Integer, String> acrossClues;
-  private Map<Integer, String> downClues;
+  private Map<Integer, String> clues;
 
   // letter numbers and black squares
   private int[][] geometry = new int[PUZZLE_SIZE][PUZZLE_SIZE];
@@ -127,13 +125,20 @@ class PuzzleManager {
 
     sb.append(date).append("\n");
 
-    sb.append("\nAcross:\n");
-    acrossClues.forEach((key, value) -> sb.append(key).append(": ").
-        append(value).append("\n"));
+    clues.forEach((key, value) ->  {
+      if (key > 0) {
+        if (key == 1)
+          sb.append("\nAcross:\n");
+        sb.append(key).append(": ").append(value).append("\n");
+      }
+      else {
+        if (key == -1)
+          sb.append("\nDown:\n");
+        sb.append(-key).append(": ").append(value).append("\n");
+      }
+    });
 
     sb.append("\nDown:\n");
-    downClues.forEach((key, value) -> sb.append(key).append(": ").
-        append(value).append("\n"));
 
     sb.append("\nSquares:\n");
     for (int i = 0; i < PUZZLE_SIZE; i++) {
@@ -190,8 +195,7 @@ class PuzzleManager {
 
     loadSquares();
     loadDate();
-    loadClues(1, acrossClues = new HashMap<>());
-    loadClues(2, downClues = new HashMap<>());
+    loadClues();
 
     driver.quit();
     Instant end = Instant.now();
@@ -211,18 +215,11 @@ class PuzzleManager {
         date = dateMatcher.group(1);
       }
 
-      acrossClues = new HashMap<>();
-      final Matcher acrossMatcher = ACROSS_REGEX.matcher(content);
+      clues = new LinkedHashMap<>();
+      final Matcher acrossMatcher = CLUE_REGEX.matcher(content);
       while (acrossMatcher.find()) {
         String[] entry = acrossMatcher.group(1).split("<split>");
-        acrossClues.put(Integer.parseInt(entry[0]), entry[1]);
-      }
-
-      downClues = new HashMap<>();
-      final Matcher downMatcher = DOWN_REGEX.matcher(content);
-      while (downMatcher.find()) {
-        String[] entry = downMatcher.group(1).split("<split>");
-        downClues.put(Integer.parseInt(entry[0]), entry[1]);
+        clues.put(Integer.parseInt(entry[0]), entry[1]);
       }
 
       int count = 0;
@@ -246,10 +243,8 @@ class PuzzleManager {
   private void savePuzzleToFile() {
     StringBuilder content = new StringBuilder();
     content.append("<date>").append(date).append("</date>\n");
-    acrossClues.forEach((key, value) -> content.append("<across>").append(key)
-        .append("<split>").append(value).append("</across>\n"));
-    downClues.forEach((key, value) -> content.append("<down>").append(key)
-        .append("<split>").append(value).append("</down>\n"));
+    clues.forEach((key, value) -> content.append("<clue>").append(key)
+        .append("<split>").append(value).append("</clue>\n"));
 
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {
@@ -270,15 +265,20 @@ class PuzzleManager {
     System.out.println();
   }
 
-  private void loadClues(int listNum, Map<Integer, String> map) {
-    for (int i = 0; i < 5; i++) {
-      String str = "section[class^='Layout-clueLists--']> div:nth-child(" + listNum
-          + ")> ol> li:nth-child(" + (i + 1) + ")>";
-      map.put(
-          Integer.parseInt(
-              driver.findElement(By.cssSelector(str + "span[class^='Clue-label--']")).getText()),
-          driver.findElement(By.cssSelector(str + "span[class^='Clue-text--']")).getText()
-      );
+  private void loadClues() {
+    clues = new LinkedHashMap<>();
+    for (int i = 1; i <= 2; i++) {
+      for (int j = 1; j <= 5; j++) {
+        String str = "section[class^='Layout-clueLists--']> div:nth-child(" + i
+            + ")> ol> li:nth-child(" + j + ")>";
+        int num = Integer.parseInt(
+            driver.findElement(By.cssSelector(str + "span[class^='Clue-label--']")).getText());
+        if (i == 2)
+          num = -num; // down clues
+
+        clues.put(num,
+            driver.findElement(By.cssSelector(str + "span[class^='Clue-text--']")).getText());
+      }
     }
   }
 

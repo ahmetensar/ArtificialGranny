@@ -1,14 +1,14 @@
 <date>30_10_2017</date>
-<across>1<split>"The Incredibles" boy, so named for his speed</across>
-<across>5<split>A V.I.P. line may have a velvet one</across>
-<across>6<split>Initial venture</across>
-<across>7<split>Voting nay</across>
-<across>8<split>Sal's travelmate in Kerouac's "On the Road"</across>
-<down>1<split>Pilotless plane</down>
-<down>2<split>Crucial heart artery</down>
-<down>3<split>Country with a secessionist crisis</down>
-<down>4<split>"How's it goin'"</down>
-<down>6<split>Flash mobbing or wearing grillz, in the 2000s</down>
+<clue>1<split>"The Incredibles" boy, so named for his speed</clue>
+<clue>5<split>A V.I.P. line may have a velvet one</clue>
+<clue>6<split>Initial venture</clue>
+<clue>7<split>Voting nay</clue>
+<clue>8<split>Sal's travelmate in Kerouac's "On the Road"</clue>
+<clue>-1<split>Pilotless plane</clue>
+<clue>-2<split>Crucial heart artery</clue>
+<clue>-3<split>Country with a secessionist crisis</clue>
+<clue>-4<split>"How's it goin'"</clue>
+<clue>-6<split>Flash mobbing or wearing grillz, in the 2000s</clue>
 <square>-1<split>-</square>
 <square>1<split>D</square>
 <square>2<split>A</square>

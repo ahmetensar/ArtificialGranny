@@ -1,4 +1,4 @@
-package com.artificialgranny;
+package cs461.artificialgranny;
 
 import java.io.File;
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package com.artificialgranny;
+package cs461.artificialgranny;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -79,8 +79,9 @@ class PuzzleManager {
           return false;
         }
       }
-    } else if (!Arrays.equals(letters[lineNumber], word))
+    } else if (!Arrays.equals(letters[lineNumber], word)) {
       return false;
+    }
     return true;
   }
 
@@ -117,15 +118,16 @@ class PuzzleManager {
 
     sb.append(date).append("\n");
 
-    clues.forEach((key, value) ->  {
+    clues.forEach((key, value) -> {
       if (key > 0) {
-        if (key == 1)
+        if (key == 1) {
           sb.append("\nAcross:\n");
+        }
         sb.append(key).append(": ").append(value).append("\n");
-      }
-      else {
-        if (key == -1)
+      } else {
+        if (key == -1) {
           sb.append("\nDown:\n");
+        }
         sb.append(-key).append(": ").append(value).append("\n");
       }
     });
@@ -231,8 +233,9 @@ class PuzzleManager {
       final Matcher relatedMatcher = RELATED_REGEX.matcher(content);
       related = null;
       while (relatedMatcher.find()) {
-        if (related == null)
+        if (related == null) {
           related = HashMultimap.create();
+        }
         String entry[] = relatedMatcher.group(1).split(",");
         for (int i = 1; i < entry.length; i++) {
           System.out.println(entry[0]);
@@ -267,7 +270,7 @@ class PuzzleManager {
     if (related != null) {
       for (int i : related.keySet()) {
         content.append("<related>").append(i);
-        for(int j : related.get(i)) {
+        for (int j : related.get(i)) {
           content.append(",").append(j);
         }
         content.append("</related>\n");
@@ -299,8 +302,9 @@ class PuzzleManager {
         int num = Integer.parseInt(
             element.findElement(By.cssSelector("span[class^='Clue-label--']")).getText()
         );
-        if (i == 2)
+        if (i == 2) {
           num = -num; // down clues
+        }
 
         clues.put(num,
             element.findElement(By.cssSelector("span[class^='Clue-text--']")).getText());
@@ -308,8 +312,9 @@ class PuzzleManager {
         element.click();
 
         if (driver.findElements(By.cssSelector("li[class*='Clue-related']")).size() > 0) {
-          if (related == null)
+          if (related == null) {
             related = HashMultimap.create();
+          }
           for (int k = 1; k <= 2; k++) {
             List<WebElement> relatedClues = driver.findElements(
                 By.cssSelector("section[class^='Layout-clueLists--']> div:nth-child(" + k
@@ -320,8 +325,9 @@ class PuzzleManager {
               int relatedNum = Integer.parseInt(
                   relatedClue.findElement(By.cssSelector("span[class^='Clue-label--']")).getText()
               );
-              if (k == 2)
+              if (k == 2) {
                 relatedNum = -relatedNum;
+              }
               related.put(num, relatedNum);
             }
           }

@@ -1,5 +1,6 @@
 package cs461.artificialgranny;
 
+import cs461.artificialgranny.model.PuzzleState;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,28 +12,34 @@ public class Main {
   public static void main(String[] args) {
     File puzzleDir = new File("puzzles");
     if (!puzzleDir.exists()) {
-      if (puzzleDir.mkdir())
+      if (puzzleDir.mkdir()) {
         System.out.println("Puzzles folder is created");
-      else
+      } else {
         System.out.println("Puzzles folder could not be created");
+      }
       System.out.println();
     }
 
     Scanner scan = new Scanner(System.in);
-    PuzzleManager pm = new PuzzleManager();
+    PuzzleManager pm = null;
     int choice;
     do {
       System.out.println("1: Load puzzle from web");
       System.out.println("2: Load puzzle from file");
-      System.out.println("3: Exit");
+      if (pm != null) {
+        System.out.println("3: Solve");
+      }
+      System.out.println("0: Exit");
       System.out.println();
       System.out.println("Enter an integer:");
       choice = scan.nextInt();
       scan.nextLine();
 
       if (choice == 1) {
-        pm.loadPuzzleFromWeb();
-        System.out.println(pm);
+        pm = new PuzzleManager();
+        pm.savePuzzleToFile("puzzles" + File.separator
+            + pm.getPuzzleState().getDate() + ".puzzle");
+        System.out.println(pm.getPuzzleState());
       }
 
       if (choice == 2) {
@@ -58,14 +65,23 @@ public class Main {
           if (puzzleNum < 1 || puzzleNum > files.size()) {
             System.out.println("Invalid!");
           } else {
-            pm.loadPuzzleFromFile(files.get(puzzleNum - 1));
-            System.out.println(pm);
+            pm = new PuzzleManager(files.get(puzzleNum - 1));
+            System.out.println(pm.getPuzzleState());
           }
         }
       }
+
+      if (choice == 3 && pm != null) {
+        PuzzleState solvableState = pm.getSolvableState();
+        while (!solvableState.isFull()) {
+          solvableState.step();
+          System.out.println(solvableState.lettersToString());
+        }
+      }
+
       System.out.println();
       System.out.println();
       System.out.println();
-    } while (choice != 3);
+    } while (choice != 0);
   }
 }

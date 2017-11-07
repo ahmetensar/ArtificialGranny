@@ -2,6 +2,7 @@ package cs461.artificialgranny;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import cs461.artificialgranny.model.PuzzleState;
 import io.github.bonigarcia.wdm.ChromeDriverManager;
 import java.io.File;
 import java.io.IOException;
@@ -11,7 +12,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,131 +27,139 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-class PuzzleManager {
+public class PuzzleManager {
 
-  private static final int PUZZLE_SIZE = 5;
+  public static final int PUZZLE_SIZE = 5;
   private static final String URL_PUZZLE = "https://nytimes.com/crosswords/game/mini";
   private static final Pattern DATE_REGEX = Pattern.compile("<date>(.+?)</date>");
   private static final Pattern CLUE_REGEX = Pattern.compile("<clue>(.+?)</clue>");
   private static final Pattern SQUARE_REGEX = Pattern.compile("<square>(.+?)</square>");
   private static final Pattern RELATED_REGEX = Pattern.compile("<related>(.+?)</related>");
 
-  private WebDriver driver;
-  private Map<Integer, String> clues;
-
-  // stores if questions are related
-  private Multimap<Integer, Integer> related;
-
-  // letter numbers and black squares
-  private int[][] geometry = new int[PUZZLE_SIZE][PUZZLE_SIZE];
-
-  private char[][] letters = new char[PUZZLE_SIZE][PUZZLE_SIZE];
-  private String date;
+  private PuzzleState puzzleState;
 
   PuzzleManager() {
-    ChromeDriverManager.getInstance().setup();
+    loadPuzzleFromWeb();
+  }
+
+  PuzzleManager(File file) {
+    loadPuzzleFromFile(file);
+  }
+
+  PuzzleState getPuzzleState() {
+    return puzzleState;
+  }
+
+  PuzzleState getSolvableState() {
+    char[][] letters = new char[PUZZLE_SIZE][PUZZLE_SIZE];
+    for (int i = 0; i < PUZZLE_SIZE; i++) {
+      for (int j = 0; j < PUZZLE_SIZE; j++) {
+        if (puzzleState.getGeometry()[i][j] == -1) {
+          letters[i][j] = '-';
+        } else {
+          letters[i][j] = '?';
+        }
+      }
+    }
+    return new PuzzleState(puzzleState.getDate(), puzzleState.getGeometry(),
+        letters, puzzleState.getClues(), puzzleState.getRelated());
+  }
+
+  void savePuzzleToFile(String path) {
+    StringBuilder content = new StringBuilder();
+    content.append("<date>").append(puzzleState.getDate()).append("</date>\n");
+    puzzleState.getClues().forEach((key, value) -> content.append("<clue>").append(key)
+        .append(",").append(value).append("</clue>\n")
+    );
+
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 5; j++) {
+        content.append("<square>").append(puzzleState.getGeometry()[i][j]).append(",")
+            .append(puzzleState.getLetters()[i][j]).append("</square>\n");
+      }
+    }
+
+    if (puzzleState.getRelated() != null) {
+      for (int i : puzzleState.getRelated().keySet()) {
+        content.append("<related>").append(i);
+        for (int j : puzzleState.getRelated().get(i)) {
+          content.append(",").append(j);
+        }
+        content.append("</related>\n");
+      }
+
+    }
+
+    // save to file
+    try {
+      Files.write(Paths.get(path),
+          content.toString().getBytes());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    System.out.println("Puzzle is saved to file");
     System.out.println();
   }
 
-  String getDate() {
-    return date;
-  }
+  private void loadPuzzleFromFile(File file) {
+    try {
+      String content = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 
-  int[][] getGeometry() {
-    return geometry;
-  }
+      String date = "";
+      final Matcher dateMatcher = DATE_REGEX.matcher(content);
+      if (dateMatcher.find()) {
+        date = dateMatcher.group(1);
+      }
 
-  Multimap<Integer, Integer> getRelated() {
-    return related;
-  }
+      int count = 0;
+      int[][] geometry = new int[PUZZLE_SIZE][PUZZLE_SIZE];
+      char[][] letters = new char[PUZZLE_SIZE][PUZZLE_SIZE];
+      final Matcher squareMatcher = SQUARE_REGEX.matcher(content);
+      while (squareMatcher.find()) {
+        String[] entry = squareMatcher.group(1).split(",");
+        geometry[count / 5][count % 5] = Integer.parseInt(entry[0]);
+        letters[count / 5][count % 5] = entry[1].charAt(0);
+        count++;
+      }
 
-  boolean checkSquare(int x, int y, char c) {
-    return letters[x][y] == Character.toUpperCase(c);
-  }
+      Map<Integer, String> clues = new LinkedHashMap<>();
+      final Matcher acrossMatcher = CLUE_REGEX.matcher(content);
+      while (acrossMatcher.find()) {
+        String entry = acrossMatcher.group(1);
+        int split = entry.indexOf(',');
+        clues.put(Integer.parseInt(entry.substring(0, split)), entry.substring(split + 1));
+      }
 
-  boolean checkWord(int lineNumber, boolean isAcross, char[] word) {
-    if (word.length != PUZZLE_SIZE) {
-      return false;
-    }
-    if (!isAcross) {
-      for (int i = 0; i < PUZZLE_SIZE; i++) {
-        if (!(letters[i][lineNumber] == word[i])) {
-          return false;
+      final Matcher relatedMatcher = RELATED_REGEX.matcher(content);
+      Multimap<Integer, Integer> related = null;
+      while (relatedMatcher.find()) {
+        if (related == null) {
+          related = HashMultimap.create();
+        }
+        String entry[] = relatedMatcher.group(1).split(",");
+        for (int i = 1; i < entry.length; i++) {
+          System.out.println(entry[0]);
+          System.out.println(entry[i]);
+          related.put(Integer.parseInt(entry[0]), Integer.parseInt(entry[i]));
         }
       }
-    } else if (!Arrays.equals(letters[lineNumber], word)) {
-      return false;
+
+      puzzleState = new PuzzleState(date, geometry, letters, clues, related);
+
+      System.out.println("Puzzle is loaded from file");
+      System.out.println();
+
+    } catch (IOException e) {
+      System.out.println("Puzzle is not found!");
+      System.out.println();
     }
-    return true;
   }
 
-  boolean checkPuzzle(char[][] puzzle) {
-    return Arrays.deepEquals(letters, puzzle);
-  }
+  private void loadPuzzleFromWeb() {
+    ChromeDriverManager.getInstance().setup();
+    System.out.println();
 
-  char revealSquare(int x, int y) {
-    return letters[x][y];
-  }
-
-  char[] revealWord(int lineNumber, boolean isAcross) {
-    if (isAcross) {
-      return letters[lineNumber];
-    }
-    char[] word = new char[PUZZLE_SIZE];
-    for (int i = 0; i < PUZZLE_SIZE; i++) {
-      word[i] = letters[i][lineNumber];
-    }
-    return word;
-  }
-
-  char[][] revealPuzzle() {
-    return letters;
-  }
-
-  @Override
-  public String toString() {
-    if (date == null) {
-      return "";
-    }
-
-    StringBuilder sb = new StringBuilder();
-
-    sb.append(date).append("\n");
-
-    clues.forEach((key, value) -> {
-      if (key > 0) {
-        if (key == 1) {
-          sb.append("\nAcross:\n");
-        }
-        sb.append(key).append(": ").append(value).append("\n");
-      } else {
-        if (key == -1) {
-          sb.append("\nDown:\n");
-        }
-        sb.append(-key).append(": ").append(value).append("\n");
-      }
-    });
-
-    sb.append("\nSquares:\n");
-    for (int i = 0; i < PUZZLE_SIZE; i++) {
-      for (int j = 0; j < PUZZLE_SIZE; j++) {
-        if (geometry[i][j] > 0) {
-          sb.append("(").append(geometry[i][j]).append(")");
-        } else {
-          sb.append("   ");
-        }
-        sb.append(letters[i][j]).append("     ");
-      }
-      sb.append("\n");
-    }
-
-    sb.append("\nRelated:\n");
-    sb.append(related);
-
-    return sb.toString();
-  }
-
-  void loadPuzzleFromWeb() {
     ChromeOptions options = new ChromeOptions();
     options.addArguments("--disable-remote-fonts");
     options.addArguments("--mute-audio");
@@ -161,7 +169,7 @@ class PuzzleManager {
     System.out.println();
 
     Instant start = Instant.now();
-    driver = new ChromeDriver(options);
+    WebDriver driver = new ChromeDriver(options);
 
     System.out.println();
     System.out.println("Driver is opened");
@@ -189,112 +197,62 @@ class PuzzleManager {
         .click();
     driver.findElement(By.cssSelector("div[class^='ModalBody-closeX--']>a")).click();
 
-    related = null;
-
-    loadSquares();
-    loadClues();
-    loadDate();
-
-    driver.quit();
-    Instant end = Instant.now();
-
-    System.out.println("Driver is closed");
-    System.out.format("Driver time: %ds\n\n", Duration.between(start, end).getSeconds());
-
-    savePuzzleToFile();
-  }
-
-  void loadPuzzleFromFile(File file) {
+    // date
+    WebElement element = driver.findElement(By.cssSelector("div[class^='PuzzleDetails-date--']"));
+    SimpleDateFormat sdf = new SimpleDateFormat("MMMMM dd, yyyy", Locale.US);
+    String date = "";
     try {
-      String content = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
-
-      final Matcher dateMatcher = DATE_REGEX.matcher(content);
-      if (dateMatcher.find()) {
-        date = dateMatcher.group(1);
-      }
-
-      clues = new LinkedHashMap<>();
-      final Matcher acrossMatcher = CLUE_REGEX.matcher(content);
-      while (acrossMatcher.find()) {
-        String entry = acrossMatcher.group(1);
-        int split = entry.indexOf(',');
-        clues.put(Integer.parseInt(entry.substring(0, split)), entry.substring(split + 1));
-      }
-
-      int count = 0;
-      final Matcher squareMatcher = SQUARE_REGEX.matcher(content);
-      while (squareMatcher.find()) {
-        String[] entry = squareMatcher.group(1).split(",");
-        geometry[count / 5][count % 5] = Integer.parseInt(entry[0]);
-        letters[count / 5][count % 5] = entry[1].charAt(0);
-        count++;
-      }
-
-      final Matcher relatedMatcher = RELATED_REGEX.matcher(content);
-      related = null;
-      while (relatedMatcher.find()) {
-        if (related == null) {
-          related = HashMultimap.create();
-        }
-        String entry[] = relatedMatcher.group(1).split(",");
-        for (int i = 1; i < entry.length; i++) {
-          System.out.println(entry[0]);
-          System.out.println(entry[i]);
-          related.put(Integer.parseInt(entry[0]), Integer.parseInt(entry[i]));
-        }
-      }
-
-      System.out.println("Puzzle is loaded from file");
-      System.out.println();
-
-    } catch (IOException e) {
-      System.out.println("Puzzle is not found!");
-      System.out.println();
-    }
-  }
-
-  private void savePuzzleToFile() {
-    StringBuilder content = new StringBuilder();
-    content.append("<date>").append(date).append("</date>\n");
-    clues.forEach((key, value) -> content.append("<clue>").append(key)
-        .append(",").append(value).append("</clue>\n")
-    );
-
-    for (int i = 0; i < 5; i++) {
-      for (int j = 0; j < 5; j++) {
-        content.append("<square>").append(geometry[i][j]).append(",")
-            .append(letters[i][j]).append("</square>\n");
-      }
-    }
-
-    if (related != null) {
-      for (int i : related.keySet()) {
-        content.append("<related>").append(i);
-        for (int j : related.get(i)) {
-          content.append(",").append(j);
-        }
-        content.append("</related>\n");
-      }
-
-    }
-
-    // save to file
-    try {
-      Files.write(Paths.get("puzzles" + File.separator + date + ".puzzle"),
-          content.toString().getBytes());
-    } catch (IOException e) {
+      Date d = sdf.parse(element.getText().split(" ", 2)[1]);
+      sdf.applyPattern("dd_MM_YYYY");
+      date = sdf.format(d);
+    } catch (ParseException e) {
       e.printStackTrace();
     }
 
-    System.out.println("Puzzle is saved to file");
-    System.out.println();
-  }
+    // geometry and letters
+    List<WebElement> isEmptyList = driver.findElement(By.cssSelector("g[data-group='cells']"))
+        .findElements(By.cssSelector("rect"));
 
-  private void loadClues() {
-    clues = new LinkedHashMap<>();
+    if (isEmptyList.size() != PUZZLE_SIZE * PUZZLE_SIZE) {
+      driver.quit();
+      System.out.println("Wrong puzzle: puzzle size is " + (int) Math.sqrt(isEmptyList.size()));
+      throw new IllegalStateException();
+    }
+
+    int[][] geometry = new int[PUZZLE_SIZE][PUZZLE_SIZE];
+    char[][] letters = new char[PUZZLE_SIZE][PUZZLE_SIZE];
+    for (int i = 0; i < PUZZLE_SIZE; i++) {
+      for (int j = 0; j < PUZZLE_SIZE; j++) {
+        if (isEmptyList.get(i * PUZZLE_SIZE + j).getAttribute("fill").equals("black")) {
+          geometry[i][j] = -1;
+          letters[i][j] = '-';
+        }
+      }
+    }
+
+    List<WebElement> squareList = driver.findElement(By.cssSelector("g[data-group='cells']"))
+        .findElements(By.tagName("text"));
+
+    int squareListIndex = 0;
+    for (int i = 0; i < PUZZLE_SIZE; i++) {
+      for (int j = 0; j < PUZZLE_SIZE; j++) {
+        if (geometry[i][j] != -1) {
+          if (squareList.get(squareListIndex).getAttribute("text-anchor").equals("start")) {
+            geometry[i][j] = Integer.parseInt(squareList.get(squareListIndex).getText());
+            squareListIndex++;
+          }
+          letters[i][j] = squareList.get(squareListIndex).getText().charAt(0);
+          squareListIndex++;
+        }
+      }
+    }
+
+    // clues and related
+    Map<Integer, String> clues = new LinkedHashMap<>();
+    Multimap<Integer, Integer> related = null;
     for (int i = 1; i <= 2; i++) {
       for (int j = 1; j <= 5; j++) {
-        WebElement element = driver.findElement(
+        element = driver.findElement(
             By.cssSelector("section[class^='Layout-clueLists--']> div:nth-child(" + i
                 + ")> ol> li:nth-child(" + j + ")"
             )
@@ -334,54 +292,14 @@ class PuzzleManager {
         }
       }
     }
+
+    puzzleState = new PuzzleState(date, geometry, letters, clues, related);
+
+    driver.quit();
+    Instant end = Instant.now();
+
+    System.out.println("Driver is closed");
+    System.out.format("Driver time: %ds\n\n", Duration.between(start, end).getSeconds());
   }
 
-  private void loadSquares() {
-    List<WebElement> isEmptyList = driver.findElement(By.cssSelector("g[data-group='cells']"))
-        .findElements(By.cssSelector("rect"));
-
-    if (isEmptyList.size() != PUZZLE_SIZE * PUZZLE_SIZE) {
-      driver.quit();
-      System.out.println("Wrong puzzle: puzzle size is " + (int) Math.sqrt(isEmptyList.size()));
-      throw new IllegalStateException();
-    }
-
-    for (int i = 0; i < PUZZLE_SIZE; i++) {
-      for (int j = 0; j < PUZZLE_SIZE; j++) {
-        if (isEmptyList.get(i * PUZZLE_SIZE + j).getAttribute("fill").equals("black")) {
-          geometry[i][j] = -1;
-          letters[i][j] = '-';
-        }
-      }
-    }
-
-    List<WebElement> squareList = driver.findElement(By.cssSelector("g[data-group='cells']"))
-        .findElements(By.tagName("text"));
-
-    int squareListIndex = 0;
-    for (int i = 0; i < PUZZLE_SIZE; i++) {
-      for (int j = 0; j < PUZZLE_SIZE; j++) {
-        if (geometry[i][j] != -1) {
-          if (squareList.get(squareListIndex).getAttribute("text-anchor").equals("start")) {
-            geometry[i][j] = Integer.parseInt(squareList.get(squareListIndex).getText());
-            squareListIndex++;
-          }
-          letters[i][j] = squareList.get(squareListIndex).getText().charAt(0);
-          squareListIndex++;
-        }
-      }
-    }
-  }
-
-  private void loadDate() {
-    WebElement element = driver.findElement(By.cssSelector("div[class^='PuzzleDetails-date--']"));
-    SimpleDateFormat sdf = new SimpleDateFormat("MMMMM dd, yyyy", Locale.US);
-    try {
-      Date date = sdf.parse(element.getText().split(" ", 2)[1]);
-      sdf.applyPattern("dd_MM_YYYY");
-      this.date = sdf.format(date);
-    } catch (ParseException e) {
-      e.printStackTrace();
-    }
-  }
 }

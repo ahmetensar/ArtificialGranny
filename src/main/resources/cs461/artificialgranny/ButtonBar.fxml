@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.text.Font?>
+<ButtonBar xmlns="http://javafx.com/javafx/9" xmlns:fx="http://javafx.com/fxml/1"
+  fx:controller="cs461.artificialgranny.ButtonBarController"
+  buttonMinWidth="20.0">
+  <buttons>
+    <Button mnemonicParsing="false" onAction="#firstButtonAction"
+      text="&lt;&lt;" ButtonBar.buttonData="LEFT">
+      <font>
+        <Font size="12.0"/>
+      </font>
+    </Button>
+    <Button mnemonicParsing="false" onAction="#previousButtonAction"
+      text="&lt;" ButtonBar.buttonData="LEFT">
+      <font>
+        <Font size="12.0"/>
+      </font>
+    </Button>
+    <Label fx:id="pageNumber" alignment="CENTER" prefWidth="50.0"/>
+    <Button mnemonicParsing="false" onAction="#nextButtonAction" text="&gt;"
+      ButtonBar.buttonData="RIGHT">
+      <font>
+        <Font size="12.0"/>
+      </font>
+    </Button>
+    <Button mnemonicParsing="false" onAction="#lastButtonAction" text="&gt;&gt;"
+      ButtonBar.buttonData="RIGHT">
+      <font>
+        <Font size="12.0"/>
+      </font>
+    </Button>
+  </buttons>
+</ButtonBar>

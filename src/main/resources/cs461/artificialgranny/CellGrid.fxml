@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+
+<GridPane fx:id="cellGrid" xmlns="http://javafx.com/javafx/9" xmlns:fx="http://javafx.com/fxml/1"
+  fx:controller="cs461.artificialgranny.CellGridController">
+
+  <columnConstraints>
+    <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" prefWidth="100.0"/>
+    <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" prefWidth="100.0"/>
+    <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" prefWidth="100.0"/>
+  </columnConstraints>
+  <rowConstraints>
+    <RowConstraints prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES"/>
+    <RowConstraints prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES"/>
+    <RowConstraints prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES"/>
+  </rowConstraints>
+
+  <Label fx:id="letter" text="A" GridPane.columnSpan="3" GridPane.rowSpan="3"/>
+  <Label fx:id="number" text="1"/>
+</GridPane>

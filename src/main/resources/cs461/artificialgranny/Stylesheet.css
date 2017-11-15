@@ -1,0 +1,15 @@
+.label {
+  -fx-font-size: 18px;
+}
+
+.button {
+  -fx-font-size: 18px;
+}
+
+.tree-view {
+  -fx-font-size: 13px;
+}
+
+.list-view {
+  -fx-font-size: 14px;
+}

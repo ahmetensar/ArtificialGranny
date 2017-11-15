@@ -1,10 +1,13 @@
 # Artificial Granny
 CS 461 Project
 
-### Instructions
-1. Install Google Chrome and Maven.
+### Instructions to compile
+1. Install Maven.
 2. 'mvn clean install' in the project directory
-3. Run Main.java
+
+### Instructions to run
+1. Install Google Chrome
+2. Run artificialgranny-0.2-jar-with-dependencies.jar
 
 ### Links
 [Download Google Chrome](https://www.google.com/chrome/browser/desktop/index.html)  

@@ -1,87 +1,49 @@
 package cs461.artificialgranny;
 
-import cs461.artificialgranny.model.PuzzleState;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Scanner;
+import java.io.IOException;
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 
-public class Main {
+public class Main extends Application {
+
+  private Stage primaryStage;
 
   public static void main(String[] args) {
-    File puzzleDir = new File("puzzles");
-    if (!puzzleDir.exists()) {
-      if (puzzleDir.mkdir()) {
-        System.out.println("Puzzles folder is created");
-      } else {
-        System.out.println("Puzzles folder could not be created");
-      }
-      System.out.println();
+    launch(args);
+  }
+
+  @Override
+  public void start(Stage primaryStage) {
+    this.primaryStage = primaryStage;
+    this.primaryStage.setTitle("Artificial Granny");
+    this.primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("project_icon.png")));
+    initRootLayout();
+  }
+
+  /**
+   * Initializes the root layout.
+   */
+  private void initRootLayout() {
+    try {
+      // Load root layout from fxml file.
+      FXMLLoader loader = new FXMLLoader();
+      loader.setLocation(getClass().getResource("PuzzleLayout.fxml"));
+      BorderPane rootLayout = loader.load();
+      PuzzleLayoutController puzzleLayoutController = loader.getController();
+      puzzleLayoutController.setStage(primaryStage);
+
+
+      // Show the scene containing the root layout.
+      Scene scene = new Scene(rootLayout);
+      scene.getStylesheets().add(getClass().getResource("Stylesheet.css").toExternalForm());
+      primaryStage.setScene(scene);
+      primaryStage.show();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
-
-    Scanner scan = new Scanner(System.in);
-    PuzzleManager pm = null;
-    int choice;
-    do {
-      System.out.println("1: Load puzzle from web");
-      System.out.println("2: Load puzzle from file");
-      if (pm != null) {
-        System.out.println("3: Solve");
-      }
-      System.out.println("0: Exit");
-      System.out.println();
-      System.out.println("Enter an integer:");
-      choice = scan.nextInt();
-      scan.nextLine();
-
-      if (choice == 1) {
-        pm = new PuzzleManager();
-        pm.savePuzzleToFile("puzzles" + File.separator
-            + pm.getPuzzleState().getDate() + ".puzzle");
-        System.out.println(pm.getPuzzleState());
-      }
-
-      if (choice == 2) {
-        File f = new File("puzzles");
-        File[] fileArray = f.listFiles();
-        if (fileArray == null) {
-          System.out.println("There is no puzzle");
-        } else {
-          ArrayList<File> files = new ArrayList<>(Arrays.asList(fileArray));
-          Collections.sort(files);
-          for (int i = 0; i < files.size(); i++) {
-            if (files.get(i).getName().endsWith(".puzzle")) {
-              System.out.println((i + 1) + ": " + files.get(i).toString()
-                  .substring(8, files.get(i).toString().length()));
-            } else {
-              files.remove(i);
-              i--;
-            }
-          }
-          System.out.println();
-          System.out.println("Choose:");
-          int puzzleNum = scan.nextInt();
-          if (puzzleNum < 1 || puzzleNum > files.size()) {
-            System.out.println("Invalid!");
-          } else {
-            pm = new PuzzleManager(files.get(puzzleNum - 1));
-            System.out.println(pm.getPuzzleState());
-          }
-        }
-      }
-
-      if (choice == 3 && pm != null) {
-        PuzzleState solvableState = pm.getSolvableState();
-        while (!solvableState.isFull()) {
-          solvableState.step();
-          System.out.println(solvableState.lettersToString());
-        }
-      }
-
-      System.out.println();
-      System.out.println();
-      System.out.println();
-    } while (choice != 0);
   }
 }

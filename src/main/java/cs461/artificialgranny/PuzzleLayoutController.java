@@ -95,14 +95,15 @@ public class PuzzleLayoutController implements Initializable {
   private Stage stage;
   private ButtonBar solveBox;
 
+  private String path;
+  private Thread openingThread;
   private Puzzle solution;
   private List<PuzzleState> steps;
-  private String path;
-
   private int[][] geometry;
 
   @Override
   public void initialize(URL location, ResourceBundle resources) {
+    setupDriver();
     bindCells(0);
     bindCells(1);
     bindClues();
@@ -118,6 +119,32 @@ public class PuzzleLayoutController implements Initializable {
     } catch (URISyntaxException e) {
       e.printStackTrace();
     }
+  }
+
+  private void setupDriver() {
+    Task<Boolean> task = new Task<Boolean>() {
+      @Override
+      protected Boolean call() throws Exception {
+        try {
+          Puzzle.setupDriver();
+          return true;
+        } catch (Exception e) {
+          e.printStackTrace();
+          return false;
+        }
+      }
+    };
+    task.setOnSucceeded(Event -> {
+      if (!task.getValue()) {
+        final Alert alert = new Alert(AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText("Error");
+        alert.setContentText("Could not load driver");
+        alert.show();
+      }
+    });
+    openingThread = new Thread(task);
+    openingThread.start();
   }
 
   private void bindCells(int gridNum) {
@@ -375,14 +402,27 @@ public class PuzzleLayoutController implements Initializable {
       @Override
       protected Integer call() throws Exception {
         try {
-          solution.emptyPuzzle(); if(Thread.interrupted()) return -1;
-          updateMessage("Opening driver...");
-          solution.openDriver(); if(Thread.interrupted()) return -1;
+          updateMessage("Loading driver");
+          if (openingThread.isAlive())
+            openingThread.join(); if(Thread.interrupted()) return -1;
+          else if (Puzzle.isDriverNull()) {
+            setupDriver();
+            openingThread.join(); if(Thread.interrupted()) return -1;
+          }
+          try {
+            updateMessage("Opening driver");
+            Puzzle.openDriver();
+          } catch (Exception e) {
+            e.printStackTrace();
+            updateMessage("Could not open driver, make sure Google Chrome is installed");
+            return 1;
+          }
           updateMessage("Opening page...");
-          solution.openPage(); if(Thread.interrupted()) return -1;
+          Puzzle.openPage(); if(Thread.interrupted()) return -1;
           updateMessage("Clicking buttons...");
-          solution.clickButtons(); if(Thread.interrupted()) return -1;
+          Puzzle.clickButtons(); if(Thread.interrupted()) return -1;
 
+          solution.emptyPuzzle(); if(Thread.interrupted()) return -1;
           updateMessage("Loading date...");
           solution.loadDateFromDriver(); if(Thread.interrupted()) return -1;
           updateMessage("Loading squares...");
@@ -390,12 +430,13 @@ public class PuzzleLayoutController implements Initializable {
           updateMessage("Loading clues...");
           solution.loadCluesFromDriver(); if(Thread.interrupted()) return -1;
           updateMessage("Closing driver...");
-          solution.closeDriver(); if(Thread.interrupted()) return -1;
+          Puzzle.closeDriver(); if(Thread.interrupted()) return -1;
           updateMessage("Loading word positions...");
           solution.loadWordPositions(); if (Thread.interrupted()) return -1;
           return 0;
         } catch (Exception e) {
           e.printStackTrace();
+          updateMessage("Puzzle could not be loaded");
           return 1;
         }
       }
@@ -426,9 +467,9 @@ public class PuzzleLayoutController implements Initializable {
         alert.getButtonTypes().add(ButtonType.OK);
         alert.setTitle("Error");
         alert.setHeaderText("Error");
-        alert.setContentText("Puzzle could not be loaded");
+        alert.setContentText(task.getMessage());
         alert.show();
-        System.out.println("Puzzle could not be loaded");
+        System.out.println(task.getMessage());
       } else {
         alert.close();
       }
@@ -613,14 +654,11 @@ public class PuzzleLayoutController implements Initializable {
   private void showColors(PuzzleState puzzleState) {
     geometry = puzzleState.getPuzzle().getGeometry();
     chosenIndex.set(puzzleState.getChosenIndex());
-
-    showColors();
   }
 
   private void showColors(Puzzle puzzle) {
     geometry = puzzle.getGeometry();
     chosenIndex.set(0);
-    showColors();
   }
 
   private void showColors() {
@@ -668,8 +706,8 @@ public class PuzzleLayoutController implements Initializable {
   void setStage(Stage stage) {
     this.stage = stage;
     stage.setOnCloseRequest(e -> {
-      exitAction();
       e.consume();
+      exitAction();
     });
   }
 }

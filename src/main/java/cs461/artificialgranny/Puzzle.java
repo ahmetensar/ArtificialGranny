@@ -165,25 +165,29 @@ public class Puzzle implements Serializable {
     }
   }
 
-  void openDriver() {
-    if(driver == null) {
-      ChromeDriverManager.getInstance().setup();
-
-      ChromeOptions options = new ChromeOptions();
-      options.addArguments("--disable-remote-fonts");
-      options.addArguments("--mute-audio");
-      options.addArguments("--headless");
-      options.addArguments("--disable-gpu");
-
-      driver = new ChromeDriver(options);
-    }
+  static boolean isDriverNull() {
+    return driver == null;
   }
 
-  void openPage() {
+  static void setupDriver() {
+    ChromeDriverManager.getInstance().setup();
+  }
+
+  static void openDriver() {
+    ChromeOptions options = new ChromeOptions();
+    options.addArguments("--disable-remote-fonts");
+    options.addArguments("--mute-audio");
+    options.addArguments("--headless");
+    options.addArguments("--disable-gpu");
+
+    driver = new ChromeDriver(options);
+  }
+
+  static void openPage() {
     driver.get(URL_PUZZLE);
   }
 
-  void clickButtons() {
+  static void clickButtons() {
     // wait until OK button is ready
     (new WebDriverWait(driver, 10))
         .until(ExpectedConditions
@@ -298,7 +302,7 @@ public class Puzzle implements Serializable {
     }
   }
 
-  void closeDriver() {
+  static void closeDriver() {
     driver.quit();
   }
 

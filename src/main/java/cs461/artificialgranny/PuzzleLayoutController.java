@@ -104,21 +104,13 @@ public class PuzzleLayoutController implements Initializable {
   @Override
   public void initialize(URL location, ResourceBundle resources) {
     setupDriver();
+    setupListeners();
     bindCells(0);
     bindCells(1);
     bindClues();
     bindCandidates();
-    setResize();
-    try {
-      path = getClass().getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
-      int index = path.lastIndexOf(File.separator);
-      if(index > -1)
-        path = path.substring(0, index + 1);
-      else
-        path = System.getProperty("user.home");
-    } catch (URISyntaxException e) {
-      e.printStackTrace();
-    }
+    setupResize();
+    setupPath();
   }
 
   private void setupDriver() {
@@ -236,6 +228,39 @@ public class PuzzleLayoutController implements Initializable {
 
     treeView.setRoot(root);
     treeView.setShowRoot(false);
+  }
+
+  private void bindCandidates() {
+    listView.itemsProperty().bind(candidates);
+  }
+
+  private void setupResize() {
+    SplitPane.setResizableWithParent(flowPane, false);
+    SplitPane.setResizableWithParent(listView, false);
+    listView.minWidthProperty().bind(horizontalSplitPane.widthProperty().multiply(0.5));
+    listView.prefWidthProperty().bind(horizontalSplitPane.widthProperty().multiply(0.5));
+    puzzleGrid.maxHeightProperty().bind(puzzlePane.widthProperty());
+    puzzleGrid.maxWidthProperty().bind(puzzleGrid.heightProperty());
+    solutionGrid.prefWidthProperty().bind(
+        horizontalSplitPane.widthProperty().subtract(listView.widthProperty()).subtract(10));
+    solutionGrid.prefHeightProperty().bind(
+        horizontalSplitPane.widthProperty().subtract(listView.widthProperty()).subtract(10));
+  }
+
+  private void setupPath() {
+    try {
+      path = getClass().getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+      int index = path.lastIndexOf("/");
+      if(index > -1)
+        path = path.substring(0, index + 1);
+      else
+        path = System.getProperty("user.home");
+    } catch (URISyntaxException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void setupListeners() {
     BooleanProperty flag = new SimpleBooleanProperty(false);
     chosenIndex.addListener((observable, oldValue, newValue) -> {
       if (!flag.get()) {
@@ -294,23 +319,6 @@ public class PuzzleLayoutController implements Initializable {
             }
           }
         });
-  }
-
-  private void bindCandidates() {
-    listView.itemsProperty().bind(candidates);
-  }
-
-  private void setResize() {
-    SplitPane.setResizableWithParent(flowPane, false);
-    SplitPane.setResizableWithParent(listView, false);
-    listView.minWidthProperty().bind(horizontalSplitPane.widthProperty().multiply(0.5));
-    listView.prefWidthProperty().bind(horizontalSplitPane.widthProperty().multiply(0.5));
-    puzzleGrid.maxHeightProperty().bind(puzzlePane.widthProperty());
-    puzzleGrid.maxWidthProperty().bind(puzzleGrid.heightProperty());
-    solutionGrid.prefWidthProperty().bind(
-        horizontalSplitPane.widthProperty().subtract(listView.widthProperty()).subtract(10));
-    solutionGrid.prefHeightProperty().bind(
-        horizontalSplitPane.widthProperty().subtract(listView.widthProperty()).subtract(10));
   }
 
   @FXML
@@ -429,8 +437,6 @@ public class PuzzleLayoutController implements Initializable {
           solution.loadSquaresFromDriver(); if(Thread.interrupted()) return -1;
           updateMessage("Loading clues...");
           solution.loadCluesFromDriver(); if(Thread.interrupted()) return -1;
-          updateMessage("Closing driver...");
-          Puzzle.closeDriver(); if(Thread.interrupted()) return -1;
           updateMessage("Loading word positions...");
           solution.loadWordPositions(); if (Thread.interrupted()) return -1;
           return 0;
@@ -473,7 +479,7 @@ public class PuzzleLayoutController implements Initializable {
       } else {
         alert.close();
       }
-
+      Puzzle.closeDriver();
     });
 
     Thread thread = new Thread(task);
@@ -557,6 +563,8 @@ public class PuzzleLayoutController implements Initializable {
     final Optional<ButtonType> result = alert.showAndWait();
 
     if (result.isPresent() && result.get() == ButtonType.YES) {
+      if(!Puzzle.isDriverNull())
+        Puzzle.closeDriver();
       System.exit(0);
     }
   }
@@ -654,11 +662,13 @@ public class PuzzleLayoutController implements Initializable {
   private void showColors(PuzzleState puzzleState) {
     geometry = puzzleState.getPuzzle().getGeometry();
     chosenIndex.set(puzzleState.getChosenIndex());
+    showColors();
   }
 
   private void showColors(Puzzle puzzle) {
     geometry = puzzle.getGeometry();
     chosenIndex.set(0);
+    showColors();
   }
 
   private void showColors() {

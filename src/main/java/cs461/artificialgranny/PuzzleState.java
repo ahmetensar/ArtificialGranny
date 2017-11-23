@@ -11,14 +11,15 @@ class PuzzleState {
 
   private final Puzzle puzzle;
 
-  private List<Integer> questions;
+  private final List<Integer> questions;
   private int index;
 
   private List<String> candidates;
   private boolean isSpaceLeft;
 
   PuzzleState(Puzzle puzzle) {
-    this.puzzle = puzzle;
+    this.puzzle = SerializationUtils.clone(puzzle);
+    questions = new ArrayList<>(puzzle.getClues().keySet());
     candidates = new ArrayList<>();
     index = -1;
     isSpaceLeft = true;
@@ -35,9 +36,6 @@ class PuzzleState {
   boolean next() {
     if (isLast()) {
       return false;
-    }
-    if (questions == null) {
-      questions = new ArrayList<>(puzzle.getClues().keySet());
     }
     solve();
     return true;
@@ -127,4 +125,6 @@ class PuzzleState {
   int getChosenIndex() {
     return index > -1 ? questions.get(index) : 0;
   }
+
+
 }

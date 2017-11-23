@@ -28,7 +28,6 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -38,21 +37,34 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.apache.commons.lang3.SerializationUtils;
 
+/**
+ * This class controls everything about GUI
+ *
+ * @author ahmetensar
+ * @version 0.3
+ */
+
 public class PuzzleLayoutController implements Initializable {
+
+  /*
+   * These observableLists stores the bindings for updating GUI simultaneously
+   */
 
   private final ObservableList<StringProperty> puzzleGridLetters = FXCollections
       .observableArrayList();
@@ -68,45 +80,84 @@ public class PuzzleLayoutController implements Initializable {
       .observableArrayList();
   private final ObservableList<StringProperty> clues = FXCollections.observableArrayList();
   private final ListProperty<String> candidates = new SimpleListProperty<>();
+
+  // the chosen word in puzzle which is marked in blue
   private final IntegerProperty chosenIndex = new SimpleIntegerProperty();
 
-  @FXML
-  public BorderPane borderPane;
-  @FXML
-  private Button solveButton;
-  @FXML
-  private TreeView<String> treeView;
-  @FXML
-  private SplitPane horizontalSplitPane;
-  @FXML
-  private ListView<String> listView;
-  @FXML
-  private StackPane puzzlePane;
-  @FXML
-  private GridPane puzzleGrid;
-  @FXML
-  private GridPane solutionGrid;
-  @FXML
-  private FlowPane flowPane;
-  @FXML
-  private VBox vBox;
-  @FXML
-  private MenuItem saveMenuItem;
-  private Stage stage;
-  private ButtonBar solveBox;
 
+  /*
+   * FXML objects
+   */
+
+  @FXML // main pane
+  public BorderPane borderPane;
+
+  @FXML // save in MenuBar
+  private MenuItem saveMenuItem;
+
+  @FXML // reset in MenuBar
+  private MenuItem resetMenuItem;
+
+  @FXML // stores the previous and next buttons above puzzle
+  private HBox buttonBox;
+
+  @FXML // stores puzzleGrid
+  private StackPane puzzlePane;
+
+  @FXML // the puzzle that the program tries to solve
+  private GridPane puzzleGrid;
+
+  @FXML // stores clues
+  private TreeView<String> treeView;
+
+  @FXML // stores listView and flowPane
+  private SplitPane horizontalSplitPane;
+
+  @FXML // stores candidates
+  private ListView<String> listView;
+
+  @FXML // stores solutionGrid
+  private FlowPane flowPane;
+
+  @FXML // the solution puzzle
+  private GridPane solutionGrid;
+
+  // cells of puzzle, used to update cells with keyboard
+  private List<GridPane> cellGrids;
+
+  // the file path of the program
   private String path;
+
+  // this thread used when program starts, to open Chrome WebDriver
   private Thread openingThread;
-  private Puzzle solution;
+
+  // list of puzzles, used when previous button is called
   private List<PuzzleState> steps;
+
+  // current puzzle state to be solved
+  private PuzzleState puzzleState;
+
+  // geometry of the puzzle
   private int[][] geometry;
+
+  // previous clicked cell grid,
+  // if previous and current are same, gui changes the direction (across-down)
+  private GridPane prevCellGrid;
+
+  // selected cell index
+  private int cellIndex;
+
+  private Stage stage;
+  private Puzzle solution;
+  private boolean isAcross;
+  private boolean isPuzzleLoaded;
+  private boolean isSpaceLeft;
 
   @Override
   public void initialize(URL location, ResourceBundle resources) {
     setupDriver();
     setupListeners();
-    bindCells(0);
-    bindCells(1);
+    bindCells();
     bindClues();
     bindCandidates();
     setupResize();
@@ -139,59 +190,202 @@ public class PuzzleLayoutController implements Initializable {
     openingThread.start();
   }
 
-  private void bindCells(int gridNum) {
+  private void setupListeners() {
+    BooleanProperty flag = new SimpleBooleanProperty(false);
+    chosenIndex.addListener((observable, oldValue, newValue) -> {
+      if (!flag.get()) {
+        flag.set(true);
+        cellIndex = -1;
+        List<Integer> relatedList = new LinkedList<>();
+        relatedList.add(newValue.intValue());
+        if (solution.getRelated() != null) {
+          relatedList.addAll(solution.getRelated().get(newValue.intValue()));
+        }
+        treeView.getSelectionModel().clearSelection();
+        if (relatedList.size() > 1) {
+          treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        } else {
+          treeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        }
+
+        if (newValue.equals(0)) {
+          treeView.getSelectionModel().select(treeView.getRoot().getChildren().get(0));
+        } else {
+          for (int relatedNum : relatedList) {
+            for (int i = 1; i <= 2; i++) {
+              TreeItem<String> subRoot = treeView.getRoot().getChildren().get(i);
+              for (TreeItem<String> item : subRoot.getChildren()) {
+                if (item != null) {
+                  char c = item.getValue().charAt(0);
+                  if (Character.isDigit(c)) {
+                    int num = Character.getNumericValue(c);
+                    if (subRoot.getValue().equals("Down")) {
+                      num = -num;
+                    }
+                    if (relatedNum == num) {
+                      treeView.getSelectionModel().select(item);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        chosenIndex.setValue(newValue);
+        flag.set(false);
+      }
+    });
+
+    treeView.getSelectionModel().selectedItemProperty().addListener(
+        (observable, oldValue, newValue) -> {
+          if (geometry != null && newValue != null && !newValue.getParent()
+              .equals(treeView.getRoot()) && newValue.getValue().length() > 0) {
+            char c = newValue.getValue().charAt(0);
+            if (Character.isDigit(c)) {
+              int num = Character.getNumericValue(c);
+              if (newValue.getParent().getValue().equals("Down")) {
+                num = -num;
+              }
+              chosenIndex.set(num);
+              showColors();
+            }
+          }
+        }
+    );
+
+    borderPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+      if (cellIndex >= 0) {
+        int x = cellIndex / 5;
+        int y = cellIndex % 5;
+        if (event.getCode() == KeyCode.BACK_SPACE) {
+          Label letter = (Label) cellGrids.get(cellIndex).getChildren().get(0);
+          if (letter.getText().equals(" ")) {
+            selectCellGrid(searchPrevCell(cellIndex));
+          } else {
+            String str = " ";
+            letter.setText(str);
+            puzzleState.getPuzzle().setPuzzleSquare(x, y, str.charAt(0));
+            steps.get(steps.size() - 1).getPuzzle().setPuzzleSquare(x, y, str.charAt(0));
+          }
+        } else if (event.getCode() == KeyCode.LEFT) {
+          if (y != 0 && geometry[x][y - 1] != -1) {
+            if (!isAcross) {
+              isAcross = true;
+              selectCellGrid(cellIndex);
+            } else
+              selectCellGrid(cellIndex - 1);
+          }
+        } else if(event.getCode() == KeyCode.RIGHT) {
+          if (y != 4 && geometry[x][y + 1] != -1) {
+            if (!isAcross) {
+              isAcross = true;
+              selectCellGrid(cellIndex);
+            } else
+              selectCellGrid(cellIndex + 1);
+          }
+        } else if (event.getCode() == KeyCode.UP) {
+          if (x != 0 && geometry[x - 1][y] != -1) {
+            if (isAcross) {
+              isAcross = false;
+              selectCellGrid(cellIndex);
+            } else
+              selectCellGrid(cellIndex - 5);
+          }
+        } else if(event.getCode() == KeyCode.DOWN) {
+          if (x != 4 && geometry[x + 1][y] != -1) {
+            if (isAcross) {
+              isAcross = false;
+              selectCellGrid(cellIndex);
+            } else
+              selectCellGrid(cellIndex + 5);
+          }
+        } else if (event.getCode().isLetterKey() || event.getCode().isDigitKey()){
+          Label letter  = (Label) cellGrids.get(cellIndex).getChildren().get(0);
+          String str = event.getText().toUpperCase();
+          letter.setText(str);
+          puzzleState.getPuzzle().setPuzzleSquare(x, y, str.charAt(0));
+          steps.get(steps.size() - 1).getPuzzle().setPuzzleSquare(x, y, str.charAt(0));
+          selectCellGrid(searchNextCell(cellIndex));
+        }
+        event.consume();
+      }
+    });
+  }
+
+  private void bindCells() {
     GridPane gridPane;
     ObservableList<StringProperty> letters;
     ObservableList<StringProperty> numbers;
     ObservableList<StringProperty> colors;
-    if (gridNum == 0) {
-      gridPane = solutionGrid;
-      letters = solutionGridLetters;
-      numbers = solutionGridNumbers;
-      colors = solutionGridColors;
-    } else if (gridNum == 1) {
-      gridPane = puzzleGrid;
-      letters = puzzleGridLetters;
-      numbers = puzzleGridNumbers;
-      colors = puzzleGridColors;
-    } else {
-      return;
-    }
+    cellGrids = new ArrayList<>();
+
     try {
-      for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-          FXMLLoader loader = new FXMLLoader();
-          loader.setLocation(Main.class.getResource("CellGrid.fxml"));
-          GridPane cellGrid = loader.load();
+      for (int gridNum = 0; gridNum <= 1; gridNum++) {
+        if (gridNum == 0) {
+          gridPane = solutionGrid;
+          letters = solutionGridLetters;
+          numbers = solutionGridNumbers;
+          colors = solutionGridColors;
+        } else {
+          gridPane = puzzleGrid;
+          letters = puzzleGridLetters;
+          numbers = puzzleGridNumbers;
+          colors = puzzleGridColors;
+        }
 
-          StringProperty letter = new SimpleStringProperty();
-          ((Label) cellGrid.getChildren().get(0)).textProperty().bind(letter);
-          StringProperty number = new SimpleStringProperty();
-          ((Label) cellGrid.getChildren().get(1)).textProperty().bind(number);
+        for (int i = 0; i < 5; i++) {
+          for (int j = 0; j < 5; j++) {
+            final int x = i;
+            final int y = j;
 
-          StringProperty color = new SimpleStringProperty();
-          color.addListener((observable, oldValue, newValue) -> {
-            switch (newValue) {
-              case "BLACK":
-                cellGrid.setBackground(new Background(
-                    new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, new Insets(1, 1, 1, 1))));
-                break;
-              case "CHOSEN":
-                cellGrid.setBackground(new Background(
-                    new BackgroundFill(Color.rgb(167, 216, 255), CornerRadii.EMPTY,
-                        new Insets(1, 1, 1, 1))));
-                break;
-              default:
-                cellGrid.setBackground(new Background(
-                    new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, new Insets(1, 1, 1, 1))));
-                break;
-            }
-          });
-          color.set("");
-          gridPane.add(cellGrid, j, i);
-          letters.add(letter);
-          numbers.add(number);
-          colors.add(color);
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(Main.class.getResource("CellGrid.fxml"));
+            GridPane cellGrid = loader.load();
+
+            StringProperty letter = new SimpleStringProperty();
+            ((Label) cellGrid.getChildren().get(0)).textProperty().bindBidirectional(letter);
+            StringProperty number = new SimpleStringProperty();
+            ((Label) cellGrid.getChildren().get(1)).textProperty().bind(number);
+
+            StringProperty color = new SimpleStringProperty();
+            color.addListener((observable, oldValue, newValue) -> {
+              switch (newValue) {
+                case "BLACK":
+                  cellGrid.setBackground(new Background(
+                      new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, new Insets(1, 1, 1, 1))));
+                  break;
+                case "CHOSEN_LINE":
+                  cellGrid.setBackground(new Background(
+                      new BackgroundFill(Color.rgb(167, 216, 255), CornerRadii.EMPTY,
+                          new Insets(1, 1, 1, 1))));
+                  break;
+                case "CHOSEN_SQUARE":
+                  cellGrid.setBackground(new Background(
+                      new BackgroundFill(Color.rgb(255, 218, 0), CornerRadii.EMPTY,
+                          new Insets(1, 1, 1, 1))));
+                  break;
+                default:
+                  cellGrid.setBackground(new Background(
+                      new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, new Insets(1, 1, 1, 1))));
+                  break;
+              }
+            });
+            color.set("");
+
+            if (gridNum == 1)
+              cellGrids.add(cellGrid);
+
+            gridPane.add(cellGrid, j, i);
+            letters.add(letter);
+            numbers.add(number);
+            colors.add(color);
+
+            isPuzzleLoaded = false;
+            cellGrid.setOnMouseClicked(event -> {
+              if (isPuzzleLoaded)
+                selectCellGrid(x * 5 + y);
+            });
+          }
         }
       }
     } catch (IOException e) {
@@ -260,144 +454,290 @@ public class PuzzleLayoutController implements Initializable {
     }
   }
 
-  private void setupListeners() {
-    BooleanProperty flag = new SimpleBooleanProperty(false);
-    chosenIndex.addListener((observable, oldValue, newValue) -> {
-      if (!flag.get()) {
-        List<Integer> relatedList = new LinkedList<>();
-        relatedList.add(newValue.intValue());
-        if (solution.getRelated() != null) {
-          relatedList.addAll(solution.getRelated().get(newValue.intValue()));
-        }
-        treeView.getSelectionModel().clearSelection();
-        if (relatedList.size() > 1) {
-          treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        } else {
-          treeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        }
+  private int searchNextCell(int index) {
+    int x = index / 5;
+    int y = index % 5;
 
-        if (newValue.equals(0)) {
-          treeView.getSelectionModel().select(treeView.getRoot().getChildren().get(0));
-        } else {
-          for (int relatedNum : relatedList) {
-            for (int i = 1; i <= 2; i++) {
-              TreeItem<String> subRoot = treeView.getRoot().getChildren().get(i);
-              for (TreeItem<String> item : subRoot.getChildren()) {
-                if (item != null) {
-                  char c = item.getValue().charAt(0);
-                  if (Character.isDigit(c)) {
-                    int num = Character.getNumericValue(c);
-                    if (subRoot.getValue().equals("Down")) {
-                      num = -num;
-                    }
-                    if (relatedNum == num) {
-                      flag.set(true);
-                      treeView.getSelectionModel().select(item);
-                      flag.set(false);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-        showColors();
+    int current = isAcross ? y : x;
+    for (int num = (current == 4 ? 0 : current + 1); num != current; num = (num >= 4 ? 0 : num + 1)) {
+      int i = isAcross ? x : num;
+      int j = isAcross ? num : y;
+      if (geometry[i][j] != -1 && puzzleGridLetters.get(i * 5 + j).get().equals(" ")) {
+        isSpaceLeft = true;
+        return i * 5 + j;
       }
-    });
+    }
+    if (current == 4)
+      return -1;
+    if (isSpaceLeft) {
+      isSpaceLeft = false;
+      return -1;
+    }
+    return isAcross ? x * 5 + y + 1 : (x + 1) * 5 + y;
 
-    treeView.getSelectionModel().selectedItemProperty()
-        .addListener((observable, oldValue, newValue) -> {
-          if (geometry != null && newValue != null && !newValue.getParent()
-              .equals(treeView.getRoot()) && newValue.getValue().length() > 0) {
-            char c = newValue.getValue().charAt(0);
-            if (Character.isDigit(c)) {
-              int num = Character.getNumericValue(c);
-              if (newValue.getParent().getValue().equals("Down")) {
-                num = -num;
-              }
-              chosenIndex.set(num);
-            }
-          }
-        });
   }
 
-  @FXML
-  public void solveAction() {
-    BooleanProperty isCancelled = new SimpleBooleanProperty(false);
+  private int searchPrevCell(int index) {
+    int x = isAcross ? index / 5 : index / 5 - 1;
+    int y = isAcross ? index % 5 - 1 : index % 5;
 
-    Task<Boolean> task = new Task<Boolean>() {
-      @Override
-      protected Boolean call() throws Exception {
-        try {
-          Puzzle solvablePuzzle = SerializationUtils.clone(solution);
-          solvablePuzzle.changeToSolvable();
+    if (x == -1 || y == -1 || geometry[x][y] == -1)
+      return -1;
+    return x * 5 + y;
+  }
 
-          PuzzleState puzzleState = new PuzzleState(solvablePuzzle);
-          steps = new ArrayList<>();
-          steps.add(new PuzzleState(puzzleState));
-          while (puzzleState.next()) {
-            if (isCancelled.get()) {
-              return false;
-            }
-            steps.add(new PuzzleState(puzzleState));
-          }
-          return true;
-        } catch (Exception e) {
-          e.printStackTrace();
-          return false;
+  private void selectCellGrid(int index) {
+    if (index == -1 || puzzleGridNumbers.get(index).get().equals("-1"))
+      return;
+
+    GridPane cellGrid = cellGrids.get(index);
+    int x = index / 5;
+    int y = index % 5;
+
+    if (cellGrid == prevCellGrid ^ chosenIndex.get() >= 0) {
+      isAcross = true;
+      for (int newY = 0; newY <= y; newY++) {
+        String str = puzzleGridNumbers.get(x * 5 + newY).get();
+        if (!str.equals("")) {
+          int num = Integer.parseInt(str);
+          chosenIndex.set(num);
+          break;
         }
       }
-    };
-
-    final Alert alert = new Alert(AlertType.INFORMATION);
-    alert.getButtonTypes().clear();
-    alert.getButtonTypes().add(ButtonType.CANCEL);
-    alert.setTitle("Solving Puzzle");
-    alert.setHeaderText("Solving Puzzle");
-    final Button cancel = (Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL);
-    cancel.addEventFilter(ActionEvent.ACTION, event -> isCancelled.set(true));
-    alert.show();
-
-    task.setOnSucceeded(Event -> {
-      alert.getButtonTypes().clear();
-      alert.getButtonTypes().add(ButtonType.OK);
-      if (task.getValue()) {
-        alert.close();
-        try {
-          FXMLLoader loader = new FXMLLoader();
-          loader.setLocation(Main.class.getResource("ButtonBar.fxml"));
-          ButtonBar buttonBar = loader.load();
-          ButtonBarController buttonBarController = loader.getController();
-
-          solveBox = (ButtonBar) vBox.getChildren().remove(0);
-          vBox.getChildren().add(0, buttonBar);
-
-          buttonBarController.setLast(steps.size());
-          buttonBarController.getPageNumber().textProperty().addListener(
-              (observable, oldValue, newValue) -> showStep(Integer.parseInt(newValue) - 1));
-          buttonBarController.getPageNumber().textProperty().setValue("1");
-          System.out.println("Puzzle is solved");
-        } catch (IOException e) {
-          e.printStackTrace();
-          alert.setAlertType(AlertType.ERROR);
-          alert.setTitle("Error");
-          alert.setHeaderText("Error");
-          alert.setContentText("GUI component could not be loaded");
-          alert.show();
-          System.out.println("ButtonBar.fxml could not be loaded");
+    } else {
+      isAcross = false;
+      for (int newX = 0; newX <= x; newX++) {
+        String str = puzzleGridNumbers.get(newX * 5 + y).get();
+        if (!str.equals("")) {
+          int num = Integer.parseInt(str);
+          chosenIndex.set(-num);
+          break;
         }
-      } else {
-        alert.setAlertType(AlertType.ERROR);
+      }
+    }
+    showColors();
+    solutionGridColors.get(index).set("CHOSEN_SQUARE");
+    puzzleGridColors.get(index).set("CHOSEN_SQUARE");
+
+    prevCellGrid = cellGrid;
+
+    cellIndex = index;
+  }
+
+  private void saveFile() {
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setInitialDirectory(new File(path));
+    fileChooser.setInitialFileName(solution.getDate());
+
+    //Extension filter
+    FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
+        "puzzle files (*.puzzle)",
+        "*.puzzle");
+    fileChooser.getExtensionFilters().add(extFilter);
+
+    //Show save file dialog
+    File file = fileChooser.showSaveDialog(stage);
+
+    if (file != null) {
+      try {
+        solution.savePuzzleToFile(file);
+      } catch (Exception e) {
+        final Alert alert = new Alert(AlertType.ERROR);
         alert.setTitle("Error");
-        alert.setHeaderText("Error");
-        alert.setContentText("Puzzle could not be solved");
+        alert.setHeaderText("Puzzle could not be saved to file");
         alert.show();
-        System.out.println("Puzzle could not be solved");
       }
+    }
+  }
+
+  private void exit() {
+    final Alert alert = new Alert(AlertType.CONFIRMATION);
+    alert.setTitle("");
+    alert.setHeaderText("Are you sure you want to exit?");
+    alert.setContentText("");
+
+    alert.getButtonTypes().clear();
+    alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO);
+
+    //Deactivate Default behavior for yes-Button:
+    Button yesButton = (Button) alert.getDialogPane().lookupButton(ButtonType.YES);
+    yesButton.setDefaultButton(false);
+
+    //Activate Default behavior for no-Button:
+    Button noButton = (Button) alert.getDialogPane().lookupButton(ButtonType.NO);
+    noButton.setDefaultButton(true);
+    final Optional<ButtonType> result = alert.showAndWait();
+
+    if (result.isPresent() && result.get() == ButtonType.YES) {
+      if(!Puzzle.isDriverNull())
+        Puzzle.closeDriver();
+      System.exit(0);
+    }
+  }
+
+  private void showStep(int stepNum) {
+    showCells(steps.get(stepNum).getPuzzle(), 1);
+    geometry = steps.get(stepNum).getPuzzle().getGeometry();
+    chosenIndex.set(steps.get(stepNum).getChosenIndex());
+    showColors();
+    candidates.set(FXCollections.observableArrayList(steps.get(stepNum).getCandidates()));
+  }
+
+  private void showInitialPuzzle() {
+    showCells(null, 0);
+    showCells(null, 1);
+    showCells(solution, 0);
+    showCells(solution, 1, false);
+    geometry = solution.getGeometry();
+    chosenIndex.set(0);
+    showColors();
+    showClues();
+    addStepButtons();
+    saveMenuItem.setDisable(false);
+    resetMenuItem.setDisable(false);
+    candidates.set(null);
+    treeView.getRoot().getChildren().get(0).setValue(solution.getDateFormatted());
+    isPuzzleLoaded = true;
+  }
+
+  private void showCells(Puzzle puzzle, int gridNum) {
+    showCells(puzzle, gridNum, true);
+  }
+
+  private void showCells(Puzzle puzzle, int gridNum, boolean showLetters) {
+    ObservableList<StringProperty> letters;
+    ObservableList<StringProperty> numbers;
+    if (gridNum == 0) {
+      letters = solutionGridLetters;
+      numbers = solutionGridNumbers;
+    } else if (gridNum == 1) {
+      letters = puzzleGridLetters;
+      numbers = puzzleGridNumbers;
+    } else {
+      return;
+    }
+    if (puzzle == null) {
+      letters.forEach(stringProperty -> stringProperty.setValue(""));
+      numbers.forEach(stringProperty -> stringProperty.setValue(""));
+    } else {
+      for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+          char letter = puzzle.getLetters()[i][j];
+          int number = puzzle.getGeometry()[i][j];
+          if (number != -1) {
+            if (showLetters)
+              letters.get(i * 5 + j).set(letter + "");
+            else
+              letters.get(i * 5 + j).set(" ");
+          }
+          if (number > 0) {
+            numbers.get(i * 5 + j).set(number + "");
+          }
+        }
+      }
+    }
+  }
+
+  private void showClues() {
+    List<Integer> keys = new ArrayList<>(solution.getClues().keySet());
+    for (int i = 0; i < keys.size(); i++) {
+      int key = keys.get(i);
+      if (key > 0) {
+        clues.get(i).set(key + ": " + solution.getClues().get(key));
+      } else {
+        clues.get(i).set(-key + ": " + solution.getClues().get(key));
+      }
+    }
+  }
+
+  private void showColors() {
+    boolean[][] isChosen = new boolean[5][5];
+    List<Integer> relatedList = new LinkedList<>();
+    relatedList.add(chosenIndex.get());
+    if (solution.getRelated() != null) {
+      relatedList.addAll(solution.getRelated().get(chosenIndex.get()));
+    }
+    for (int relatedNum : relatedList) {
+      for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+          int number = geometry[i][j];
+
+          if (relatedNum < 0 && relatedNum == -number) {
+            for (int k = i; k < 5; k++) {
+              isChosen[k][j] = true;
+            }
+          } else if (relatedNum > 0 && relatedNum == number) {
+            for (int k = j; k < 5; k++) {
+              isChosen[i][k] = true;
+            }
+          }
+        }
+      }
+    }
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 5; j++) {
+        int number = geometry[i][j];
+
+        if (number == -1) {
+          puzzleGridColors.get(i * 5 + j).set("BLACK");
+          solutionGridColors.get(i * 5 + j).set("BLACK");
+        } else if (isChosen[i][j]) {
+          puzzleGridColors.get(i * 5 + j).set("CHOSEN_LINE");
+          solutionGridColors.get(i * 5 + j).set("CHOSEN_LINE");
+        } else {
+          puzzleGridColors.get(i * 5 + j).set("");
+          solutionGridColors.get(i * 5 + j).set("");
+        }
+      }
+    }
+  }
+
+  private void addStepButtons() {
+    if(buttonBox.getChildren().size() > 2)
+      buttonBox.getChildren().remove(1, 4);
+
+    Puzzle solvablePuzzle = SerializationUtils.clone(solution);
+    solvablePuzzle.changeToSolvable();
+
+    puzzleState = new PuzzleState(solvablePuzzle);
+    steps = new ArrayList<>();
+    steps.add(new PuzzleState(puzzleState));
+    showStep(0);
+
+    Button previous = new Button("    <    ");
+    Button next = new Button("    >    ");
+
+    Label pageNumber = new Label("         1        ");
+
+    previous.setDisable(true);
+
+    previous.setOnAction(event -> {
+      next.setDisable(false);
+
+      steps.remove(steps.size() - 1);
+      puzzleState = new PuzzleState(steps.get(steps.size() - 1));
+      if (steps.size() == 1)
+        previous.setDisable(true);
+
+      pageNumber.textProperty().set("         " + steps.size() + "          ");
+      showStep(steps.size() - 1);
     });
 
-    Thread thread = new Thread(task);
-    thread.start();
+    next.setOnAction(event -> {
+      previous.setDisable(false);
+
+      if (puzzleState.next())
+        steps.add(new PuzzleState(puzzleState));
+      else
+        next.setDisable(true);
+
+      pageNumber.textProperty().set("         " + steps.size() + "          ");
+      showStep(steps.size() - 1);
+    });
+
+    buttonBox.getChildren().add(1, previous);
+    buttonBox.getChildren().add(2, pageNumber);
+    buttonBox.getChildren().add(3, next);
   }
 
   @FXML
@@ -465,7 +805,7 @@ public class PuzzleLayoutController implements Initializable {
       if (task.getValue() == 0) {
         alert.close();
         showInitialPuzzle();
-        saveAction();
+        saveFile();
         System.out.println("Puzzle is loaded");
       } else if(task.getValue() == 1){
         alert.setAlertType(AlertType.ERROR);
@@ -518,55 +858,12 @@ public class PuzzleLayoutController implements Initializable {
 
   @FXML
   public void saveAction() {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setInitialDirectory(new File(path));
-    fileChooser.setInitialFileName(solution.getDate());
-
-    //Extension filter
-    FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
-        "puzzle files (*.puzzle)",
-        "*.puzzle");
-    fileChooser.getExtensionFilters().add(extFilter);
-
-    //Show save file dialog
-    File file = fileChooser.showSaveDialog(stage);
-
-    if (file != null) {
-      try {
-        solution.savePuzzleToFile(file);
-      } catch (Exception e) {
-        final Alert alert = new Alert(AlertType.ERROR);
-        alert.setTitle("Error");
-        alert.setHeaderText("Puzzle could not be saved to file");
-        alert.show();
-      }
-    }
+    saveFile();
   }
 
   @FXML
   public void exitAction() {
-    final Alert alert = new Alert(AlertType.CONFIRMATION);
-    alert.setTitle("");
-    alert.setHeaderText("Are you sure you want to exit?");
-    alert.setContentText("");
-
-    alert.getButtonTypes().clear();
-    alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO);
-
-    //Deactivate Default behavior for yes-Button:
-    Button yesButton = (Button) alert.getDialogPane().lookupButton(ButtonType.YES);
-    yesButton.setDefaultButton(false);
-
-    //Activate Default behavior for no-Button:
-    Button noButton = (Button) alert.getDialogPane().lookupButton(ButtonType.NO);
-    noButton.setDefaultButton(true);
-    final Optional<ButtonType> result = alert.showAndWait();
-
-    if (result.isPresent() && result.get() == ButtonType.YES) {
-      if(!Puzzle.isDriverNull())
-        Puzzle.closeDriver();
-      System.exit(0);
-    }
+    exit();
   }
 
   @FXML
@@ -588,136 +885,16 @@ public class PuzzleLayoutController implements Initializable {
 
   }
 
-  private void showStep(int stepNum) {
-    showCells(steps.get(stepNum).getPuzzle(), 1);
-    showColors(steps.get(stepNum));
-    candidates.set(FXCollections.observableArrayList(steps.get(stepNum).getCandidates()));
-  }
-
-  private void showInitialPuzzle() {
-    if (solveBox != null) {
-      vBox.getChildren().remove(0);
-      vBox.getChildren().add(0, solveBox);
-      solveBox = null;
-    }
-    showCells(null, 0);
-    showCells(null, 1);
-    showCells(solution, 0);
-    showCells(solution, 1, false);
-    showColors(solution);
-    showClues();
-    saveMenuItem.setDisable(false);
-    solveButton.setDisable(false);
-    candidates.set(null);
-    treeView.getRoot().getChildren().get(0).setValue(solution.getDateFormatted());
-  }
-
-  private void showCells(Puzzle puzzle, int gridNum) {
-    showCells(puzzle, gridNum, true);
-  }
-
-  private void showCells(Puzzle puzzle, int gridNum, boolean showLetters) {
-    ObservableList<StringProperty> letters;
-    ObservableList<StringProperty> numbers;
-    if (gridNum == 0) {
-      letters = solutionGridLetters;
-      numbers = solutionGridNumbers;
-    } else if (gridNum == 1) {
-      letters = puzzleGridLetters;
-      numbers = puzzleGridNumbers;
-    } else {
-      return;
-    }
-    if (puzzle == null) {
-      letters.forEach(stringProperty -> stringProperty.setValue(""));
-      numbers.forEach(stringProperty -> stringProperty.setValue(""));
-    } else {
-      for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-          char letter = puzzle.getLetters()[i][j];
-          int number = puzzle.getGeometry()[i][j];
-          if (letter != '-' && showLetters) {
-            letters.get(i * 5 + j).set(letter + "");
-          }
-          if (number > 0) {
-            numbers.get(i * 5 + j).set(number + "");
-          }
-        }
-      }
-    }
-  }
-
-  private void showClues() {
-    List<Integer> keys = new ArrayList<>(solution.getClues().keySet());
-    for (int i = 0; i < keys.size(); i++) {
-      int key = keys.get(i);
-      if (key > 0) {
-        clues.get(i).set(key + ": " + solution.getClues().get(key));
-      } else {
-        clues.get(i).set(-key + ": " + solution.getClues().get(key));
-      }
-    }
-  }
-
-  private void showColors(PuzzleState puzzleState) {
-    geometry = puzzleState.getPuzzle().getGeometry();
-    chosenIndex.set(puzzleState.getChosenIndex());
-    showColors();
-  }
-
-  private void showColors(Puzzle puzzle) {
-    geometry = puzzle.getGeometry();
-    chosenIndex.set(0);
-    showColors();
-  }
-
-  private void showColors() {
-    boolean[][] isChosen = new boolean[5][5];
-    List<Integer> relatedList = new LinkedList<>();
-    relatedList.add(chosenIndex.get());
-    if (solution.getRelated() != null) {
-      relatedList.addAll(solution.getRelated().get(chosenIndex.get()));
-    }
-    for (int relatedNum : relatedList) {
-      for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-          int number = geometry[i][j];
-
-          if (relatedNum < 0 && relatedNum == -number) {
-            for (int k = i; k < 5; k++) {
-              isChosen[k][j] = true;
-            }
-          } else if (relatedNum > 0 && relatedNum == number) {
-            for (int k = j; k < 5; k++) {
-              isChosen[i][k] = true;
-            }
-          }
-        }
-      }
-    }
-    for (int i = 0; i < 5; i++) {
-      for (int j = 0; j < 5; j++) {
-        int number = geometry[i][j];
-
-        if (number == -1) {
-          puzzleGridColors.get(i * 5 + j).set("BLACK");
-          solutionGridColors.get(i * 5 + j).set("BLACK");
-        } else if (isChosen[i][j]) {
-          puzzleGridColors.get(i * 5 + j).set("CHOSEN");
-          solutionGridColors.get(i * 5 + j).set("CHOSEN");
-        } else {
-          puzzleGridColors.get(i * 5 + j).set("");
-          solutionGridColors.get(i * 5 + j).set("");
-        }
-      }
-    }
+  @FXML
+  public void resetAction() {
+    showInitialPuzzle();
   }
 
   void setStage(Stage stage) {
     this.stage = stage;
     stage.setOnCloseRequest(e -> {
       e.consume();
-      exitAction();
+      exit();
     });
   }
 }

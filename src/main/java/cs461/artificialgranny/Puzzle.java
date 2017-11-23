@@ -28,7 +28,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-public class Puzzle implements Serializable {
+class Puzzle implements Serializable {
 
   private static final int SIZE = 5;
   private static final String URL_PUZZLE = "https://nytimes.com/crosswords/game/mini";
@@ -400,5 +400,9 @@ public class Puzzle implements Serializable {
 
   Map<Integer, int[]> getWordPositions() {
     return wordPositions;
+  }
+
+  void setPuzzleSquare(int x, int y, char letter) {
+    letters[x][y] = letter;
   }
 }

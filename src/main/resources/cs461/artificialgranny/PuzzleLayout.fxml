@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.Menu?>
@@ -18,7 +17,6 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-
 <BorderPane fx:id="borderPane" prefHeight="600.0" prefWidth="850.0"
   xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
   fx:controller="cs461.artificialgranny.PuzzleLayoutController">
@@ -28,8 +26,10 @@
         <MenuItem mnemonicParsing="false" onAction="#importPuzzleFromWebAction"
           text="Import Today's Puzzle"/>
         <MenuItem mnemonicParsing="false" onAction="#openAction" text="Open..."/>
-        <MenuItem fx:id="saveMenuItem" disable="true" mnemonicParsing="false" onAction="#saveAction"
-          text="Save..."/>
+        <MenuItem fx:id="saveMenuItem" disable="true" mnemonicParsing="false"
+          onAction="#saveAction" text="Save..."/>
+        <MenuItem fx:id="resetMenuItem" mnemonicParsing="false" disable="true"
+          onAction="#resetAction" text="Reset"/>
         <MenuItem mnemonicParsing="false" onAction="#exitAction" text="Exit"/>
       </Menu>
       <Menu mnemonicParsing="false" text="Help">
@@ -39,17 +39,14 @@
   </top>
   <center>
     <HBox prefHeight="500.0" prefWidth="800.0">
-      <VBox fx:id="vBox" minWidth="250" prefHeight="150.0" prefWidth="300.0" HBox.hgrow="ALWAYS">
+      <VBox minWidth="250" prefHeight="150.0" prefWidth="300.0" HBox.hgrow="ALWAYS">
         <HBox.margin>
           <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
         </HBox.margin>
-        <ButtonBar prefHeight="40.0" prefWidth="200.0">
-          <buttons>
-            <Region ButtonBar.buttonData="LEFT"/>
-            <Button fx:id="solveButton" disable="true" onAction="#solveAction" text="Solve"/>
-            <Region ButtonBar.buttonData="RIGHT"/>
-          </buttons>
-        </ButtonBar>
+        <HBox fx:id="buttonBox" prefHeight="40.0" prefWidth="200.0">
+          <Region ButtonBar.buttonData="LEFT" HBox.hgrow="ALWAYS"/>
+          <Region ButtonBar.buttonData="RIGHT" HBox.hgrow="ALWAYS"/>
+        </HBox>
         <StackPane fx:id="puzzlePane" prefHeight="150.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
           <GridPane fx:id="puzzleGrid" gridLinesVisible="true" minHeight="250"
             StackPane.alignment="TOP_CENTER">

@@ -11,6 +11,7 @@ public class CellGridController {
 
   private final DoubleProperty letterSize = new SimpleDoubleProperty(15);
   private final DoubleProperty numberSize = new SimpleDoubleProperty(10);
+
   @FXML
   private GridPane cellGrid;
   @FXML

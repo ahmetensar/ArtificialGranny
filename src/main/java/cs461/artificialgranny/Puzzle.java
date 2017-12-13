@@ -192,15 +192,15 @@ class Puzzle implements Serializable {
     (new WebDriverWait(driver, 10))
         .until(ExpectedConditions
             .presenceOfElementLocated(
-                By.cssSelector("button[class^='ModalBody-button--']>div>span")));
+                By.cssSelector("button[class^='buttons-modalButton--']>div>span")));
 
     // click buttons
-    driver.findElement(By.cssSelector("button[class^='ModalBody-button--']>div>span")).click();
+    driver.findElement(By.cssSelector("button[class^='buttons-modalButton--']>div>span")).click();
     driver.findElement(By.cssSelector("div[class^='Toolbar-expandedMenu--']> li:nth-child(2) > "
         + "button")).click();
     driver.findElement(By.cssSelector("div[class^='Toolbar-expandedMenu--']> li:nth-child(2) > "
         + "button + ul>li:nth-child(3)>a")).click();
-    driver.findElement(By.cssSelector("div[class^='ModalBody-buttonContainer--']>:nth-child(2)"))
+    driver.findElement(By.cssSelector("div[class^='buttons-modalButtonContainer--']>:nth-child(2)"))
         .click();
     driver.findElement(By.cssSelector("div[class^='ModalBody-closeX--']>a")).click();
   }

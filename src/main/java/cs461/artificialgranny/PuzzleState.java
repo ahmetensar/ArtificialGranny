@@ -29,13 +29,16 @@ class PuzzleState {
 
     private List<String> candidates;
     private boolean isSpaceLeft;
-
+    private static ArrayList<String>[] possibleAnswers = new ArrayList[10];
+    private static int[] queue = new int[10];
+            
     PuzzleState(Puzzle puzzle) {
         this.puzzle = SerializationUtils.clone(puzzle);
         questions = new ArrayList<>(puzzle.getClues().keySet());
         candidates = new ArrayList<>();
         index = -1;
         isSpaceLeft = true;
+//        findPossibleAnswers();
     }
 
     PuzzleState(PuzzleState puzzleState) {
@@ -50,7 +53,7 @@ class PuzzleState {
         if (isLast()) {
             return false;
         }
-        solve();
+        solve();    
         return true;
     }
 
@@ -64,24 +67,49 @@ class PuzzleState {
         }
         return false;
     }
-
+    private void putInToQueue(){
+        int[] points = new int[10];
+        
+        for(int i = 0;i<10;i++){
+            queue[i]=i; 
+            int[] chosenPos = puzzle.getWordPositions().get(questions.get(i));
+            String clue = puzzle.clues.get(questions.get(i));
+            if(clue.contains("\""))
+                points[i]+=50;
+            StringTokenizer clueTok = new StringTokenizer(clue);
+            points[i]+=clueTok.countTokens();
+        }
+        int temp;
+        int temp2;
+	for (int i = 1; i < 10; i++) {
+            for(int j = i ; j > 0 ; j--){
+                if(points[j] < points[j-1]){
+                    temp = points[j];
+                    points[j] = points[j-1];
+                    points[j-1] = temp;
+                    temp2 = queue[j];
+                    queue[j] = queue[j-1];
+                    queue[j-1] = temp2;
+                }
+            }
+        }
+    }
+    
     private void solve() {
+        putInToQueue();
         index++;
         if (index == questions.size()) {
             index = 0;
         }
-        int[] chosenPos = puzzle.getWordPositions().get(questions.get(index));
-
-        String clue = puzzle.clues.get(questions.get(index));
-//    List<Integer> relatedNumbers;
-//    if (puzzle.getRelated() != null && puzzle.getRelated().containsKey(questions.get(index))) {
-//      relatedNumbers = new ArrayList<>(puzzle.getRelated().get(questions.get(index)));
-//    }
-
+        int mask = queue[index];
+        
+        int[] chosenPos = puzzle.getWordPositions().get(questions.get(mask));
+        String clue = puzzle.clues.get(questions.get(mask));
+        
         char[] oldWord = new char[chosenPos[2]];
-
+        
         for (int i = 0; i < chosenPos[2]; i++) {
-            if (questions.get(index) < 0) {
+            if (questions.get(mask) < 0) {
                 oldWord[i] = puzzle.getLetters()[chosenPos[0] + i][chosenPos[1]];
             } else {
                 oldWord[i] = puzzle.getLetters()[chosenPos[0]][chosenPos[1] + i];
@@ -93,12 +121,7 @@ class PuzzleState {
                 isSpaceLeft = true;
             }
         }
-
-          //TODO implement solver
-        // bogo solver
-        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        Random random = new Random();
-
+        
         candidates = new ArrayList<>();
         candidates.add(new String(oldWord));
         StringTokenizer clueTok = new StringTokenizer(clue);
@@ -151,7 +174,7 @@ class PuzzleState {
             for (int i = 0; i < chosenPos[2]; i++) {
                 if(!(i < chosenWord.length()))
                     break;
-                if (questions.get(index) < 0) {
+                if (questions.get(mask) < 0) {
                     puzzle.getLetters()[chosenPos[0] + i][chosenPos[1]] = chosenWord.charAt(i);
                 } else {
                     puzzle.getLetters()[chosenPos[0]][chosenPos[1] + i] = chosenWord.charAt(i);
@@ -162,6 +185,44 @@ class PuzzleState {
 
     Puzzle getPuzzle() {
         return puzzle;
+    }
+    
+    void findPossibleAnswers(){
+        for(int i = 0;i<10; i++){
+            int[] chosenPos = puzzle.getWordPositions().get(questions.get(i));
+            String clue = puzzle.clues.get(questions.get(i));
+            StringTokenizer clueTok = new StringTokenizer(clue);
+            String query = "=" + clueTok.nextToken();
+            while (clueTok.hasMoreTokens()) {
+                query = query.concat("+" + clueTok.nextToken());
+            }
+            query = query.concat("&sp=");
+            for(int j = 0; j < chosenPos[2]; j++)
+                query = query.concat("?");
+            try{
+                URL url = new URL("https://api.datamuse.com/words?ml" + query);
+                HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+                con.setRequestMethod("GET");
+                con.connect();
+                //int responsecode = con.getResponseCode();
+                String s = null;
+                Scanner sc = new Scanner(url.openStream());
+                while (sc.hasNext()) {
+                    s += sc.next();
+                }
+                sc.close();
+                String[] cands = s.split("word\":\"");
+                for(int z = 1; z<cands.length; z++){
+                    String c = cands[z];
+                    int indexof = c.indexOf("\"");
+                    possibleAnswers[i].add( c.substring(0, indexof) );
+                }   
+            } catch (MalformedURLException ex) {
+                Logger.getLogger(PuzzleState.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IOException ex) {
+                Logger.getLogger(PuzzleState.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     List<String> getCandidates() {
